@@ -22,27 +22,38 @@ Created on Tue Jan 21 12:09:40 2020
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 
+import cv2
 import json
 import sys
 import os
 import pyperclip
+from datetime import datetime
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from getpass import getpass
 from lut_print_utils import print_title
 from lut_print_utils import print_with_frame
 
+security_snapshots_dir = ''
 storages_path = ''
 
 for file in os.listdir('./'):
     if file == 'storages':
         storages_path = './storages/'
+    if file == 'security_snapshots':
+        security_snapshots_dir = './security_snapshots/'
 
 if storages_path == '':
     print('storages dir not found')
     os.mkdir('storages')
     storages_path = './storages/'
     print('new storages dir has been created')
+
+if security_snapshots_dir == '':
+    print('security_snapshots dir not found')
+    os.mkdir('security_snapshots')
+    security_snapshots_dir = './security_snapshots/'
+    print('new security_snapshots dir has been created')
 
 
 def login_to_storage(storage_filename):
@@ -54,7 +65,15 @@ def login_to_storage(storage_filename):
         except (KeyError, ValueError):
             print('Authentication failed')
             print('Attempts remained: ', 2 - attempts)
-            # get webcam capture
+            # Security snapshot
+            webcam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+            ret, frame = webcam.read()
+            now_datetime = datetime.now()
+            now_timestamp = now_datetime.strftime("%Y%m%d_%H%M%S%f")
+            img_filename = "security_snapshot_login_{}_{}.png".format(storage_filename[:-4], now_timestamp)
+            cv2.imwrite(security_snapshots_dir+img_filename, frame)
+            webcam.release()
+            cv2.destroyAllWindows()
             continue
 
         main_storage_menu(storage_filename, password)
@@ -343,7 +362,15 @@ def remove_a_storage():
                 except (KeyError, ValueError):
                     print('Authentication failed')
                     print('Attempts remained: ', 2 - attempts)
-                    # get webcam capture
+                    #Security Snapshot
+                    webcam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+                    ret, frame = webcam.read()
+                    now_datetime = datetime.now()
+                    now_timestamp = now_datetime.strftime("%Y%b%d_%H%M%S%f")
+                    img_filename = "security_snapshot_rem_{}_{}.png".format(storage_filename_to_delete, now_timestamp)
+                    cv2.imwrite(security_snapshots_dir + img_filename, frame)
+                    webcam.release()
+                    cv2.destroyAllWindows()
                     continue
     print('Storage not found')
 
