@@ -16,7 +16,7 @@ Created on Tue Jan 21 12:09:40 2020
 #    _____ _                               __         __                  #
 #   / ___/(_)___ ___  ____  ____  ___     / /  __  __/ /____  _________   #
 #   \__ \/ / __ `__ \/ __ \/ __ \/ _ \   / /  / / / / __/ _ \/ ___/ __ \  #
-#  ___/ / / / / / / / /_/ / / / /  __/  / /___ /_/ / /_/  __/ /  / /_/ /  #
+#  ___/ / / / / / / / /_/ / / / /  __/  / /__/ /_/ / /_/  __/ /  / /_/ /  #
 # /____/_/_/ /_/ /_/\____/_/ /_/\___/  /_____\__,_/\__/\___/_/   \____/   #
 #                                                                         #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -278,7 +278,7 @@ def remove_a_password_by_label(storage_filename, main_storage_password):
 def main_storage_menu(storage_filename, main_storage_password):
     while True:
         # print_title()
-        print_with_frame(storage_filename, '[]')
+        print_with_frame(storage_filename, '[]', space_before=60)
 
         print('1) Get password by label')
         print('2) Show labels')
