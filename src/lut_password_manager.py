@@ -21,7 +21,7 @@ Created on Tue Jan 21 12:09:40 2020
 #                                                                         #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-
+import argparse
 import cv2
 import json
 import sys
@@ -34,28 +34,11 @@ from getpass import getpass
 from lut_print_utils import print_title
 from lut_print_utils import print_with_frame
 
+
 security_snapshots_dir = ''
 storages_path = ''
 
-for file in os.listdir('./'):
-    if file == 'storages':
-        storages_path = './storages/'
-    if file == 'security_snapshots':
-        security_snapshots_dir = './security_snapshots/'
-
-if storages_path == '':
-    print('storages dir not found')
-    os.mkdir('storages')
-    storages_path = './storages/'
-    print('new storages dir has been created')
-
-if security_snapshots_dir == '':
-    print('security_snapshots dir not found')
-    os.mkdir('security_snapshots')
-    security_snapshots_dir = './security_snapshots/'
-    print('new security_snapshots dir has been created')
-
-
+    
 def login_to_storage(storage_filename):
     for attempts in range(0, 3):
         password = getpass('Insert Main Password: ')
@@ -306,15 +289,26 @@ def main_storage_menu(storage_filename, main_storage_password):
             sys.exit(0)
 
 
-def login_to_a_storage():
-    storage_filename = input('Enter storage filename: ')
+def check_if_storage_exists_and_login(storage_filename):
+    if not storage_filename.endswith('.bin'):
+        storage_filename += '.bin'
+    if check_if_storage_exists(storage_filename):
+        login_to_storage(storage_filename)
+
+
+def check_if_storage_exists(storage_filename):
     if not storage_filename.endswith('.bin'):
         storage_filename += '.bin'
     for file_to_check in os.listdir(storages_path):
         if file_to_check.lower() == storage_filename.lower():
-            login_to_storage(storage_filename)
-            return
+            return True
     print('Storage not found')
+    return False
+
+
+def login_to_a_storage():
+    storage_filename = input('Enter storage filename: ')
+    check_if_storage_exists_and_login(storage_filename)
 
 
 def show_storages():
@@ -402,6 +396,87 @@ def main_menu():
             sys.exit(0)
 
 
+def set_directories():
+    global storages_path
+    global security_snapshots_dir
+    for file in os.listdir('./'):
+        if file == 'storages':
+            storages_path = './storages/'
+        if file == 'security_snapshots':
+            security_snapshots_dir = './security_snapshots/'
+    
+    if storages_path == '':
+        print('storages dir not found')
+        os.mkdir('storages')
+        storages_path = './storages/'
+        print('new storages dir has been created')
+    
+    if security_snapshots_dir == '':
+        print('security_snapshots dir not found')
+        os.mkdir('security_snapshots')
+        security_snapshots_dir = './security_snapshots/'
+        print('new security_snapshots dir has been created')
+
+
+def get_password_by_storage_and_label_cl(storage_filename, label):
+    if not storage_filename.endswith('.bin'):
+        storage_filename += '.bin'
+    for file_to_check in os.listdir(storages_path):
+        if file_to_check.lower() == storage_filename.lower():
+            for attempts in range(0, 3):
+                password = getpass('Insert Main Storage Password: ')
+                try:
+                    data = get_decrypted_storage(storage_filename, password)
+                    print('Successful access')
+                    for record in data:
+                        if record[0].lower() == label.lower():
+                            print('Label: ', record[0])
+                            print('Username: ', record[1])
+                            pyperclip.copy(record[2])
+                            print('Password:  Copied to clipboard')  # record[2])
+                            return
+                    print('Label not found')
+                except (KeyError, ValueError):
+                    print('Authentication failed')
+                    print('Attempts remained: ', 2 - attempts)
+                    # Security snapshot
+                    webcam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+                    ret, frame = webcam.read()
+                    now_datetime = datetime.now()
+                    now_timestamp = now_datetime.strftime("%Y%m%d_%H%M%S%f")
+                    img_filename = "security_snapshot_login_{}_{}.png".format(storage_filename[:-4], now_timestamp)
+                    cv2.imwrite(security_snapshots_dir+img_filename, frame)
+                    webcam.release()
+                    cv2.destroyAllWindows()
+                    continue
+    print('Storage not found')
+    
+    
+def program_main():
+    set_directories()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('storage', metavar='storage_name', nargs='?', default=None, help='name of storage file where passwords are stored')
+    parser.add_argument('label', metavar='label_name', nargs='?', default=None, help='name of label associated with the password')
+    args = parser.parse_args()
+    
+    storage_filename = args.storage
+    label_to_find = args.label
+    
+    if storage_filename and label_to_find:
+        get_password_by_storage_and_label_cl(storage_filename, label_to_find)
+        return
+    if storage_filename and not label_to_find:
+        check_if_storage_exists_and_login(storage_filename)
+        return
+    print_title()
+    main_menu()
+
+def module_main():
+    set_directories()
+    
+
 # Program Start
-print_title()
-main_menu()
+if __name__ == '__main__':
+    program_main()
+if __name__ == 'lut_password_manager':
+    module_main()
