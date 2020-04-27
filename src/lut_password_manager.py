@@ -109,6 +109,53 @@ def create_encrypted_storage(new_storage_filename, main_storage_password, debug_
     print(new_storage_filename, ' has been created', end='\n\n')
 
 
+def update_encrypted_storage_password(storage_filename, actual_main_storage_password, new_main_storage_password,
+                                      debug_mode=False):
+    new_main_storage_password_encoded = new_main_storage_password.encode('utf8')
+    if debug_mode:
+        print('main_storage_password_encoded is: ', new_main_storage_password_encoded, end='\n\n')
+
+    new_main_storage_password_padded = pad(new_main_storage_password_encoded, 16)
+    if debug_mode:
+        print('main_storage_password_padded is: ', new_main_storage_password_padded, end='\n\n')
+
+    # Instantiates AES cipher for encryption
+    cipher = AES.new(new_main_storage_password_padded, AES.MODE_CBC)
+
+    data = get_decrypted_storage(storage_filename, actual_main_storage_password)
+    if debug_mode:
+        print('data is: ', data, end='\n\n')
+
+    data_json = json.dumps(data)
+    if debug_mode:
+        print('data_json is: ', data_json, end='\n\n')
+
+    data_json_encoded = data_json.encode('utf8')
+    if debug_mode:
+        print('data_json_encoded is: ', data_json_encoded, end='\n\n')
+
+    data_padded = pad(data_json_encoded, AES.block_size)
+    if debug_mode:
+        print('data_padded is: ', data_padded, end='\n\n')
+
+    data_encrypted = cipher.encrypt(data_padded)
+    if debug_mode:
+        print('data_encrypted is: ', data_encrypted, end='\n\n')
+
+    if debug_mode:
+        print('cipher.iv is: ', cipher.iv, end='\n\n')
+
+    storage_filename = open(storages_path+storage_filename, 'wb')
+
+    storage_filename.write(cipher.iv)
+
+    storage_filename.write(data_encrypted)
+
+    storage_filename.close()
+
+    print('The main password of storage ', storage_filename, ' has been updated', end='\n\n')
+
+
 def update_encrypted_storage(storage_filename, main_storage_password, new_storage_data, debug_mode=False):
     main_storage_password_encoded = main_storage_password.encode('utf8')
     if debug_mode:
@@ -246,6 +293,33 @@ def add_a_new_password(storage_filename, main_storage_password):
         print('Passwords entered are not equals, the password has not been added')
 
 
+def edit_main_storage_password(storage_filename):
+    for attempts in range(0, 3):
+        actual_password = getpass('Insert actual Main Password: ')
+        try:
+            get_decrypted_storage(storage_filename, actual_password)
+            new_password = getpass('Insert new Main Password: ')
+            confirm_new_password = getpass('Retype the password to confirm: ')
+            if new_password == confirm_new_password:
+                update_encrypted_storage_password(storage_filename, actual_password, new_password)
+            else:
+                print('Passwords entered are not equals, the password has not been added')
+            return
+        except (KeyError, ValueError):
+            print('Authentication failed')
+            print('Attempts remained: ', 2 - attempts)
+            # Security snapshot
+            webcam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+            ret, frame = webcam.read()
+            now_datetime = datetime.now()
+            now_timestamp = now_datetime.strftime("%Y%m%d_%H%M%S%f")
+            img_filename = "security_snapshot_login_{}_{}.png".format(storage_filename[:-4], now_timestamp)
+            cv2.imwrite(security_snapshots_dir+img_filename, frame)
+            webcam.release()
+            cv2.destroyAllWindows()
+            continue
+
+
 def remove_a_password_by_label(storage_filename, main_storage_password):
     data = get_decrypted_storage(storage_filename, main_storage_password)
     label_to_delete = input('Enter the label: ')
@@ -266,8 +340,9 @@ def main_storage_menu(storage_filename, main_storage_password):
         print('1) Get password by label')
         print('2) Show labels')
         print('3) Add a new password')
-        print('4) Remove a password by label')
-        print('5) Return to storage selection')
+        print('4) Edit main storage password')
+        print('5) Remove a password by label')
+        print('6) Return to storage selection')
         print('0) Exit', end='\n\n')
 
         choice = input()
@@ -281,9 +356,12 @@ def main_storage_menu(storage_filename, main_storage_password):
             add_a_new_password(storage_filename, main_storage_password)
             continue
         if choice == '4':
-            remove_a_password_by_label(storage_filename, main_storage_password)
+            edit_main_storage_password(storage_filename)
             continue
         if choice == '5':
+            remove_a_password_by_label(storage_filename, main_storage_password)
+            continue
+        if choice == '6':
             break
         if choice == '0':
             sys.exit(0)
@@ -356,7 +434,7 @@ def remove_a_storage():
                 except (KeyError, ValueError):
                     print('Authentication failed')
                     print('Attempts remained: ', 2 - attempts)
-                    #Security Snapshot
+                    # Security Snapshot
                     webcam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
                     ret, frame = webcam.read()
                     now_datetime = datetime.now()
@@ -436,6 +514,7 @@ def get_password_by_storage_and_label_cl(storage_filename, label):
                             print('Password:  Copied to clipboard')  # record[2])
                             return
                     print('Label not found')
+                    return
                 except (KeyError, ValueError):
                     print('Authentication failed')
                     print('Attempts remained: ', 2 - attempts)
@@ -455,8 +534,10 @@ def get_password_by_storage_and_label_cl(storage_filename, label):
 def program_main():
     set_directories()
     parser = argparse.ArgumentParser()
-    parser.add_argument('storage', metavar='storage_name', nargs='?', default=None, help='name of storage file where passwords are stored')
-    parser.add_argument('label', metavar='label_name', nargs='?', default=None, help='name of label associated with the password')
+    parser.add_argument('storage', metavar='storage_name', nargs='?', default=None, help='name of storage file where '
+                                                                                         'passwords are stored')
+    parser.add_argument('label', metavar='label_name', nargs='?', default=None, help='name of label associated with '
+                                                                                     'the password')
     args = parser.parse_args()
     
     storage_filename = args.storage
@@ -470,6 +551,7 @@ def program_main():
         return
     print_title()
     main_menu()
+
 
 def module_main():
     set_directories()
