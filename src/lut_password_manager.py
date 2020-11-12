@@ -29,9 +29,9 @@ from datetime import datetime
 from getpass import getpass
 import pyperclip
 from pyperclip import PyperclipException
-import cv2
-from Cryptodome.Cipher import AES
-from Cryptodome.Util.Padding import pad, unpad
+from cv2 import cv2
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 from lut_print_utils import print_title
 from lut_print_utils import print_with_frame
 
